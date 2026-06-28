@@ -1,4 +1,4 @@
-# 🚗 Auto Notebook
+# 🚗 AutoDrive Notebook
 
 An AI-powered automotive assistant inspired by NotebookLM, built with **Gemini Canvas** and powered by the **Google Gemini API**.
 

@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoDrive Notebook - AI Car Manual & Document Companion</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f7fa',
+                            100: '#e4e8ee',
+                            500: '#0f172a',
+                            600: '#1e293b',
+                            accent: '#3b82f6',
+                            success: '#10b981'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .glow-green {
+            box-shadow: 0 0 12px #10b981;
+        }
+        .glow-red {
+            box-shadow: 0 0 12px #ef4444;
+        }
+        /* Fade in animations */
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 transition-colors duration-200 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- TOP HEADER -->
+    <header class="border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0f1524] px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-blue-600 rounded-lg text-white">
+                <i data-lucide="car" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white">AutoDrive <span class="text-blue-500">Notebook</span></h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Automotive Intelligence & Doc Assistant</p>
+            </div>
+        </div>
+
+        <!-- API Connection & Mode Bar -->
+        <div class="flex items-center gap-4">
+            <!-- API Key Input and Status -->
+            <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/50">
+                <i data-lucide="key" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                <div class="relative flex items-center min-w-0">
+                    <input 
+                        type="password" 
+                        id="apiKeyInput" 
+                        placeholder="Enter Gemini API Key..." 
+                        class="bg-transparent border-none text-xs focus:outline-none w-40 md:w-48 text-slate-700 dark:text-slate-200 pr-6"
+                    />
+                    <button 
+                        onclick="toggleApiKeyVisibility()" 
+                        class="absolute right-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                        title="Toggle visibility"
+                    >
+                        <i id="apiKeyVisibilityIcon" data-lucide="eye" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <button 
+                    onclick="validateAndConnectKey()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-2 py-1 rounded font-medium transition-all shrink-0"
+                >
+                    Connect
+                </button>
+                <button 
+                    onclick="clearApiKey()" 
+                    class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-rose-500 transition shrink-0" 
+                    title="Clear API Key"
+                >
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+                <div class="relative flex h-2 w-2 ml-1 shrink-0">
+                    <span id="apiStatusPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                    <span id="apiStatusIndicator" class="relative inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+                </div>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <button 
+                onclick="toggleDarkMode()" 
+                class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition"
+                title="Toggle Theme"
+            >
+                <i id="themeIcon" data-lucide="sun" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="flex flex-1 overflow-hidden">
+        
+        <!-- LEFT SIDEBAR: Document Library -->
+        <aside class="w-80 border-r border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0f1524] flex flex-col shrink-0">
+            <!-- Upload Area -->
+            <div class="p-4 border-b border-slate-200 dark:border-slate-800/60">
+                <label class="block mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Upload Car Docs</label>
+                <div 
+                    id="dropZone"
+                    class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition duration-150"
+                >
+                    <input type="file" id="fileUpload" class="hidden" accept=".pdf" multiple />
+                    <i data-lucide="upload-cloud" class="w-8 h-8 mx-auto text-slate-400 dark:text-slate-500 mb-2"></i>
+                    <p class="text-xs font-medium">Click or Drag PDF manuals</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Car Manuals, Insurance, Service Logs</p>
+                </div>
+            </div>
+
+            <!-- Documents List -->
+            <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Your Vehicle Docs</span>
+                    <span id="docCount" class="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-slate-400 font-bold">0 Loaded</span>
+                </div>
+
+                <!-- Document Items Container -->
+                <div id="docListContainer" class="flex flex-col gap-2">
+                    <!-- Loaded programmatically -->
+                </div>
+            </div>
+
+            <!-- Quick Industry Presets Info Banner -->
+            <div class="p-3 bg-blue-50/50 dark:bg-blue-950/20 border-t border-slate-200 dark:border-slate-800/80 m-4 rounded-xl text-xs text-blue-600 dark:text-blue-400">
+                <div class="flex gap-2">
+                    <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
+                    <p>Select any document to render its content in the center panel and context-search with Gemini.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER DISPLAY: PDF/Document Viewer -->
+        <section class="flex-1 bg-slate-100 dark:bg-[#131929] flex flex-col overflow-hidden relative">
+            <!-- Document Viewer Subheader -->
+            <div class="bg-white dark:bg-[#0f1524]/60 border-b border-slate-200 dark:border-slate-800/80 px-4 md:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                    <i id="viewerDocIcon" data-lucide="file-text" class="w-5 h-5 text-blue-500 shrink-0"></i>
+                    <div class="min-w-0 flex-1">
+                        <h2 id="viewerDocTitle" class="text-xs md:text-sm font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap" title="Active Document Previewer">Active Document Previewer</h2>
+                        <p id="viewerDocMeta" class="text-[10px] md:text-xs text-slate-400 mt-1 leading-normal">Select a document from the left to view</p>
+                    </div>
+                </div>
+
+                <!-- Page Navigator (Hidden initially to prevent layout compression) -->
+                <div id="pageNavControls" class="flex flex-wrap items-center justify-end gap-2 md:gap-3 text-xs opacity-0 pointer-events-none transition-opacity duration-150 w-full sm:w-auto">
+                    <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded-lg text-[11px] md:text-xs shrink-0">
+                        <button onclick="changePage(-1)" class="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Previous Page">
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <span class="select-none px-1 font-medium">Page <span id="currentPageNum" class="font-bold">1</span> of <span id="totalPageNum" class="font-bold">1</span></span>
+                        <button onclick="changePage(1)" class="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Next Page">
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+
+                    <span class="text-slate-300 dark:text-slate-700 hidden md:inline">|</span>
+
+                    <!-- Tab Switcher (Visual Canvas vs Health Dashboard vs Service Timeline) -->
+                    <div class="bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 flex gap-0.5 shrink-0 select-none">
+                        <button id="tabBtnVisual" onclick="switchViewerTab('visual')" class="px-2.5 py-1 rounded bg-white dark:bg-slate-700 shadow-sm font-semibold text-slate-800 dark:text-white transition text-[11px] md:text-xs flex items-center gap-1">
+                            <i data-lucide="eye" class="w-3.5 h-3.5 text-blue-500"></i>
+                            <span>Visual</span>
+                        </button>
+                        <button id="tabBtnDashboard" onclick="switchViewerTab('dashboard')" class="px-2.5 py-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition text-[11px] md:text-xs flex items-center gap-1">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-500"></i>
+                            <span>Dashboard</span>
+                        </button>
+                        <button id="tabBtnTimeline" onclick="switchViewerTab('timeline')" class="px-2.5 py-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition text-[11px] md:text-xs flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i>
+                            <span><span class="hidden sm:inline">Service </span>Timeline</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VEHICLE ISOLATION FILTER HEADER -->
+            <div id="vehicleFocusHeader" class="hidden bg-slate-100/80 dark:bg-[#0c111e]/40 border-b border-slate-200 dark:border-slate-800/60 px-6 py-2 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="filter" class="w-3.5 h-3.5 text-blue-500"></i>
+                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Isolated Workspace Focus:</span>
+                </div>
+                <!-- Dynamic Dropdown to isolate documents by vehicle -->
+                <select 
+                    id="vehicleFocusSelect" 
+                    onchange="handleVehicleFocusChange(this.value)"
+                    class="bg-white dark:bg-slate-800 text-xs font-bold px-3 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none shadow-sm"
+                >
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <!-- Active File Viewports -->
+            <div id="viewerCanvasContainer" class="flex-1 overflow-auto p-6 flex flex-col items-center justify-start gap-4">
+                <!-- Fallback/Upload Suggestion -->
+                <div id="viewerEmptyState" class="m-auto text-center max-w-sm">
+                    <div class="w-16 h-16 bg-blue-100 dark:bg-blue-950/40 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="file-search" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="font-semibold text-base">No active document loaded</h3>
+                    <p class="text-xs text-slate-400 mt-1">Upload your vehicle paperwork from the sidebar to begin analyzing manuals, service logs, or insurance guidelines.</p>
+                </div>
+
+                <!-- Scrollable Viewport Container for PDF Pages -->
+                <div id="canvasViewport" class="relative hidden max-w-3xl w-full p-2">
+                    <div id="pdfPagesContainer" class="flex flex-col gap-6 w-full items-center">
+                        <!-- Dynamic page canvases will be created here -->
+                    </div>
+                </div>
+
+                <!-- VEHICLE HEALTH DASHBOARD PORT -->
+                <div id="dashboardViewport" class="hidden w-full max-w-4xl p-2 md:p-4">
+                    <!-- Dynamic Dashboard content loaded programmatically -->
+                </div>
+
+                <!-- VEHICLE SERVICE TIMELINE PORT -->
+                <div id="timelineViewport" class="hidden w-full max-w-4xl p-2 md:p-4">
+                    <!-- Dynamic Timeline content loaded programmatically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT SIDEBAR: Agentic Gemini Assistant -->
+        <section class="w-96 border-l border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0f1524] flex flex-col shrink-0">
+            <!-- Chat Header -->
+            <div class="p-4 border-b border-slate-200 dark:border-slate-800/60 bg-slate-50/50 dark:bg-[#0c111e]/40">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">Automotive Intelligence</label>
+                    <!-- LLM Model Selector -->
+                    <select 
+                        id="modelSelector" 
+                        class="bg-slate-100 dark:bg-slate-800 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none"
+                    >
+                        <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    </select>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Context: <strong id="activeContextIndicator">Generic Chat (Global AI Mode)</strong></span>
+                </div>
+            </div>
+
+            <!-- Message Logs -->
+            <div id="chatMessageLog" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- Initial Assistant Message -->
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs shrink-0 font-bold">AI</div>
+                    <div class="bg-slate-100 dark:bg-slate-800/80 rounded-2xl px-4 py-2.5 text-sm max-w-[85%]">
+                        <p class="font-medium text-xs text-blue-500 mb-1">AutoDrive Co-Pilot</p>
+                        Welcome! I am equipped to assist you with any questions regarding vehicle diagnostic trouble codes, car owner manuals, warranty coverage, service invoices, or custom uploaded PDFs.
+                        <div class="mt-2 text-[11px] text-slate-400 border-t border-slate-200/50 dark:border-slate-700/50 pt-2">
+                            Select an uploaded document on the left, make sure your API key is configured, and prompt me!
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Bar -->
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800/60 bg-slate-50/50 dark:bg-[#0c111e]/40">
+                <div id="warningKeyBanner" class="hidden mb-2 text-[11px] bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded p-2 text-center">
+                    Please configure a Gemini API key in the top header to unlock answers.
+                </div>
+                <form id="chatForm" onsubmit="handleChatSubmit(event)" class="relative flex items-center">
+                    <input 
+                        type="text" 
+                        id="chatInput" 
+                        placeholder="Ask anything about the document or car..." 
+                        class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-xl py-3 pl-4 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    />
+                    <button 
+                        type="submit" 
+                        id="sendBtn"
+                        class="absolute right-2 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    >
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- App Logic Script -->
+    <script>
+        // Set PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Application State
+        let docs = [];
+        let activeDocId = null;
+        let activePage = 1;
+        let activeViewerTab = 'visual'; // visual, dashboard, timeline
+        let apiKey = '';
+        let isApiConnected = false;
+        let activePdfDoc = null; // Globally cached PDF Document object
+        let renderTasks = [];    // Active rendering tasks tracking list
+        let activeVehicleFocus = 'All'; // Global vehicle scope focus
+        let isProgrammaticScroll = false; // Flag to prevent scroll listener updates during manual jumps
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check for saved API key
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if (savedKey) {
+                document.getElementById('apiKeyInput').value = savedKey;
+                apiKey = savedKey;
+                validateAndConnectKey(false); // quiet validate
+            }
+
+            // Render Document List
+            renderDocumentList();
+
+            // Set up Icons
+            lucide.createIcons();
+
+            // Setup Drag & Drop listeners
+            setupDragAndDrop();
+
+            // Bind Scroll Listener for Dynamic Page Tracking
+            document.getElementById('viewerCanvasContainer').addEventListener('scroll', handleViewportScroll);
+        });
+
+        // Toggle Dark/Light Mode
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                themeIcon.setAttribute('data-lucide', 'sun');
+            } else {
+                html.classList.add('dark');
+                themeIcon.setAttribute('data-lucide', 'moon');
+            }
+            lucide.createIcons();
+        }
+
+        // Toggle API Key Input Visibility
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('apiKeyInput');
+            const icon = document.getElementById('apiKeyVisibilityIcon');
+            
+            if (input.type === "password") {
+                input.type = "text";
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = "password";
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        // Clear API Key completely from state and local storage
+        function clearApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            input.value = '';
+            apiKey = '';
+            isApiConnected = false;
+            localStorage.removeItem('gemini_api_key');
+
+            // Reset UI status indicator
+            const statusIndicator = document.getElementById('apiStatusIndicator');
+            const statusPing = document.getElementById('apiStatusPing');
+            statusIndicator.className = "relative inline-flex rounded-full h-2 w-2 bg-slate-400";
+            statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75";
+
+            document.getElementById('warningKeyBanner').classList.remove('hidden');
+            showUINotification("API key cleared successfully.", "info");
+            
+            // Re-render immediately to lock views
+            renderActiveDocView();
+        }
+
+        // Validate API Key with test call
+        async function validateAndConnectKey(showFeedback = true) {
+            const inputVal = document.getElementById('apiKeyInput').value.trim();
+            const statusIndicator = document.getElementById('apiStatusIndicator');
+            const statusPing = document.getElementById('apiStatusPing');
+            const chosenModel = document.getElementById('modelSelector').value;
+
+            if (!inputVal) {
+                statusIndicator.className = "relative inline-flex rounded-full h-2 w-2 bg-slate-400";
+                statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75";
+                isApiConnected = false;
+                document.getElementById('warningKeyBanner').classList.remove('hidden');
+                return;
+            }
+
+            try {
+                // Perform quick test query to validate using the selected model
+                const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${inputVal}`;
+                const payload = {
+                    contents: [{ parts: [{ text: "ping" }] }]
+                };
+
+                statusIndicator.className = "relative inline-flex rounded-full h-2 w-2 bg-amber-400";
+                statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+
+                const response = await fetch(testUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    apiKey = inputVal;
+                    localStorage.setItem('gemini_api_key', apiKey);
+                    isApiConnected = true;
+
+                    // Glowing green indicators
+                    statusIndicator.className = "relative inline-flex rounded-full h-2 w-2 bg-emerald-500 glow-green";
+                    statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75";
+                    document.getElementById('warningKeyBanner').classList.add('hidden');
+                    if (showFeedback) {
+                        showUINotification("Connected successfully!", "success");
+                    }
+
+                    // Unlock visual tabs instantly!
+                    renderActiveDocView();
+                } else {
+                    throw new Error("Invalid key or model selection configuration");
+                }
+            } catch (err) {
+                console.error("API validation failed", err);
+                statusIndicator.className = "relative inline-flex rounded-full h-2 w-2 bg-rose-500 glow-red";
+                statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75";
+                isApiConnected = false;
+                document.getElementById('warningKeyBanner').classList.remove('hidden');
+                if (showFeedback) {
+                    showUINotification("Connection failed. Verify API Key & Model support.", "error");
+                }
+                
+                // Keep viewports locked
+                renderActiveDocView();
+            }
+        }
+
+        // Setup Drag and Drop
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileUpload = document.getElementById('fileUpload');
+
+            dropZone.addEventListener('click', () => fileUpload.click());
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-blue-500', 'bg-blue-50/20');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50/20');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50/20');
+                if (e.dataTransfer.files.length) {
+                    handleUploadedFiles(e.dataTransfer.files);
+                }
+            });
+
+            fileUpload.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleUploadedFiles(e.target.files);
+                    // Clear the input value to allow uploading the same file again if removed
+                    fileUpload.value = '';
+                }
+            });
+        }
+
+        // Handle uploaded PDFs via PDF.js Text Extractor
+        async function handleUploadedFiles(fileList) {
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                if (file.type !== 'application/pdf') {
+                    showUINotification('Only PDF files are supported.', 'error');
+                    continue;
+                }
+
+                showUINotification(`Processing PDF: ${file.name}...`, 'info');
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    
+                    // Create a copied slice to inspect total page counts immediately
+                    const validationBuffer = arrayBuffer.slice(0);
+                    const pdf = await pdfjsLib.getDocument({ data: validationBuffer }).promise;
+                    const pageCount = pdf.numPages;
+                    const extractedPages = [];
+
+                    for (let p = 1; p <= pageCount; p++) {
+                        const page = await pdf.getPage(p);
+                        const textContent = await page.getTextContent();
+                        const pageText = textContent.items.map(item => item.str).join(' ');
+                        extractedPages.push({
+                            pageNumber: p,
+                            text: pageText || `[No readable text on Page ${p}]`
+                        });
+                    }
+
+                    // Create file Object Url for visual canvas preview
+                    const fileUrl = URL.createObjectURL(file);
+                    const combinedPagesText = extractedPages.map(p => p.text).join(' ');
+                    const detectedVehicle = detectVehicleFromText(combinedPagesText, file.name);
+
+                    const newDoc = {
+                        id: 'uploaded_' + Date.now() + '_' + i,
+                        name: file.name,
+                        type: detectDocType(file.name),
+                        vehicle: detectedVehicle,
+                        totalPages: pageCount,
+                        pages: extractedPages,
+                        custom: true,
+                        fileUrl: fileUrl,
+                        arrayBuffer: arrayBuffer // Master un-detached copy stored safely
+                    };
+
+                    docs.push(newDoc);
+                    showUINotification(`Parsed ${file.name} successfully! Identified: ${detectedVehicle}`, 'success');
+                } catch (err) {
+                    console.error("PDF extraction error", err);
+                    showUINotification(`Failed to parse PDF ${file.name}`, 'error');
+                }
+            }
+
+            renderDocumentList();
+            rebuildVehicleFocusOptions();
+
+            // Automatically select the last uploaded file
+            if (docs.length > 0) {
+                const lastDoc = docs[docs.length - 1];
+                selectDocument(lastDoc.id);
+            }
+        }
+
+        // Heuristics analyzer to extract specific vehicle brand & model using strict regex word boundaries
+        function detectVehicleFromText(text, filename) {
+            const combined = (text + " " + filename).toLowerCase();
+            
+            // 1. Check Tesla with strict word boundaries to avoid false matching "Model Year" to "Model Y"
+            if (/\btesla\b/i.test(combined)) {
+                if (/\bmodel\s+3\b/i.test(combined)) return 'Tesla Model 3';
+                if (/\bmodel\s+y\b/i.test(combined)) return 'Tesla Model Y';
+                if (/\bmodel\s+s\b/i.test(combined)) return 'Tesla Model S';
+                if (/\bmodel\s+x\b/i.test(combined)) return 'Tesla Model X';
+                return 'Tesla';
+            }
+            
+            // 2. Check BMW (requires exact word boundary to avoid false matching other words)
+            if (/\bbmw\b/i.test(combined)) {
+                if (/\bm3\b/i.test(combined)) return 'BMW M3 Competition';
+                if (/\bm4\b/i.test(combined)) return 'BMW M4';
+                if (/\b328i\b/i.test(combined)) return 'BMW 328i';
+                return 'BMW';
+            }
+            
+            // 3. Check Toyota
+            if (/\btoyota\b/i.test(combined)) {
+                if (/\b(rav4|rav\s*4)\b/i.test(combined)) return 'Toyota RAV4';
+                if (/\bcamry\b/i.test(combined)) return 'Toyota Camry';
+                if (/\bcorolla\b/i.test(combined)) return 'Toyota Corolla';
+                if (/\bprius\b/i.test(combined)) return 'Toyota Prius';
+                return 'Toyota';
+            }
+            
+            // 4. Check Porsche
+            if (/\bporsche\b/i.test(combined)) {
+                if (/\btaycan\b/i.test(combined)) return 'Porsche Taycan';
+                if (/\b911\b/i.test(combined)) return 'Porsche 911 Carrera';
+                return 'Porsche';
+            }
+            
+            // 5. Check Honda
+            if (/\bhonda\b/i.test(combined)) {
+                if (/\bcivic\b/i.test(combined)) return 'Honda Civic';
+                if (/\baccord\b/i.test(combined)) return 'Honda Accord';
+                if (/\bcr-?v\b/i.test(combined)) return 'Honda CR-V';
+                return 'Honda';
+            }
+            
+            // 6. Check Ford
+            if (/\bford\b/i.test(combined)) {
+                if (/\bf-?150\b/i.test(combined)) return 'Ford F-150';
+                if (/\bmustang\b/i.test(combined)) return 'Ford Mustang';
+                return 'Ford';
+            }
+
+            // 7. Check Audi
+            if (/\baudi\b/i.test(combined)) {
+                return 'Audi';
+            }
+
+            // 8. Check Mercedes
+            if (/\b(mercedes|benz|mercedes-benz)\b/i.test(combined)) {
+                return 'Mercedes-Benz';
+            }
+
+            // Isolated model keywords check if the brand is absent but model is highly unique
+            if (/\btaycan\b/i.test(combined)) return 'Porsche Taycan';
+            if (/\b(rav4|rav\s*4)\b/i.test(combined)) return 'Toyota RAV4';
+            if (/\bm3\b/i.test(combined)) return 'BMW M3 Competition';
+            if (/\bmodel\s+y\b/i.test(combined)) return 'Tesla Model Y';
+            if (/\bmodel\s+3\b/i.test(combined)) return 'Tesla Model 3';
+
+            // General extractor fallback from common brand list using strict word boundary
+            const brands = ['toyota', 'bmw', 'tesla', 'porsche', 'honda', 'ford', 'chevrolet', 'nissan', 'hyundai', 'kia', 'lexus', 'audi', 'mercedes', 'subaru', 'mazda', 'jeep', 'dodge', 'volkswagen', 'volvo'];
+            for (let b of brands) {
+                const regex = new RegExp('\\b' + b + '\\b', 'i');
+                if (regex.test(combined)) {
+                    return b.charAt(0).toUpperCase() + b.slice(1);
+                }
+            }
+
+            return 'Unspecified Vehicle';
+        }
+
+        // Helper to infer category based on filename
+        function detectDocType(name) {
+            const low = name.toLowerCase();
+            if (low.includes('manual') || low.includes('guide') || low.includes('handbook')) return 'Manual';
+            if (low.includes('insurance') || low.includes('policy') || low.includes('claim')) return 'Insurance';
+            if (low.includes('invoice') || low.includes('service') || low.includes('maintenance') || low.includes('repair')) return 'Service';
+            return 'Custom PDF';
+        }
+
+        // Rebuild workspace filter selector
+        // Rebuild workspace filter selector
+        function rebuildVehicleFocusOptions() {
+            const selector = document.getElementById('vehicleFocusSelect');
+            const header = document.getElementById('vehicleFocusHeader');
+
+            if (docs.length === 0) {
+                header.classList.add('hidden');
+                return;
+            }
+
+            header.classList.remove('hidden');
+
+            // Collect unique vehicle names
+            const vehicles = [...new Set(docs.map(d => d.vehicle))];
+
+            let html = `<option value="All">All Vehicles (Consolidated)</option>`;
+            vehicles.forEach(veh => {
+                const selected = veh === activeVehicleFocus ? 'selected' : '';
+                html += `<option value="${veh}" ${selected}>${veh}</option>`;
+            });
+
+            selector.innerHTML = html;
+        }
+
+        // Handle selector change
+        function handleVehicleFocusChange(val) {
+            activeVehicleFocus = val;
+            renderActiveDocView();
+        }
+
+        // Render Sidebar Doc List
+        function renderDocumentList() {
+            const container = document.getElementById('docListContainer');
+            const counter = document.getElementById('docCount');
+            container.innerHTML = '';
+            
+            counter.innerText = `${docs.length} Loaded`;
+
+            docs.forEach(doc => {
+                const isActive = doc.id === activeDocId;
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `p-3 rounded-xl cursor-pointer border transition flex items-start gap-3 relative group ${
+                    isActive 
+                    ? 'bg-blue-50/60 dark:bg-blue-950/30 border-blue-500/50 dark:border-blue-500/40 text-blue-900 dark:text-blue-100' 
+                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#121929] dark:hover:bg-slate-800/60 border-slate-200 dark:border-slate-800'
+                }`;
+
+                // Set different icons depending on Doc Type
+                let iconName = 'file-text';
+                let iconColor = 'text-slate-400';
+                if (doc.type === 'Manual') { iconName = 'book-open'; iconColor = 'text-emerald-500'; }
+                if (doc.type === 'Insurance') { iconName = 'shield-alert'; iconColor = 'text-indigo-500'; }
+                if (doc.type === 'Service') { iconName = 'wrench'; iconColor = 'text-amber-500'; }
+
+                itemDiv.onclick = () => selectDocument(doc.id);
+
+                itemDiv.innerHTML = `
+                    <div class="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 shadow-sm shrink-0">
+                        <i data-lucide="${iconName}" class="w-4 h-4 ${iconColor}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between gap-1">
+                            <h4 class="text-xs font-semibold truncate ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}">${doc.name}</h4>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] text-slate-400">
+                            <span class="px-1.5 py-0.5 rounded bg-slate-200/55 dark:bg-slate-800 font-medium">${doc.type}</span>
+                            <span class="px-1.5 py-0.5 rounded bg-blue-100/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold max-w-[100px] truncate" title="Detected Vehicle">${doc.vehicle}</span>
+                            <span>•</span>
+                            <span>${doc.totalPages} Pages</span>
+                        </div>
+                    </div>
+                `;
+
+                // Add delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = "absolute right-2 top-2 hidden group-hover:block p-1 hover:bg-rose-500 hover:text-white rounded text-slate-400";
+                deleteBtn.innerHTML = `<i data-lucide="trash" class="w-3.5 h-3.5"></i>`;
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteDoc(doc.id);
+                };
+                itemDiv.appendChild(deleteBtn);
+
+                container.appendChild(itemDiv);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Delete custom doc
+        function deleteDoc(id) {
+            docs = docs.filter(doc => doc.id !== id);
+            if (activeDocId === id) {
+                activeDocId = null;
+                resetViewer();
+            }
+            renderDocumentList();
+            rebuildVehicleFocusOptions();
+            showUINotification("Document removed", "info");
+        }
+
+        // Reset Viewer
+        function resetViewer() {
+            activePdfDoc = null;
+            document.getElementById('viewerEmptyState').classList.remove('hidden');
+            document.getElementById('canvasViewport').classList.add('hidden');
+            document.getElementById('dashboardViewport').classList.add('hidden');
+            document.getElementById('timelineViewport').classList.add('hidden');
+            
+            // Fully hide pageNavControls from DOM flow on empty state
+            const pageNav = document.getElementById('pageNavControls');
+            pageNav.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+            pageNav.classList.remove('flex');
+            
+            document.getElementById('viewerDocTitle').innerText = "Active Document Previewer";
+            document.getElementById('viewerDocMeta').innerText = "Select a document from the left to view";
+            document.getElementById('activeContextIndicator').innerText = "Generic Chat (Global AI Mode)";
+        }
+
+        // Select active document and load to center
+        async function selectDocument(id) {
+            activeDocId = id;
+            activePage = 1;
+            renderDocumentList();
+
+            const doc = docs.find(d => d.id === id);
+            if (!doc) return;
+
+            // Clear previous PDF compile model entirely
+            activePdfDoc = null;
+
+            // Automatically switch workspace focus to selected document's vehicle
+            activeVehicleFocus = doc.vehicle;
+            rebuildVehicleFocusOptions();
+
+            // Show active context indicator
+            document.getElementById('activeContextIndicator').innerText = doc.name;
+
+            // Setup Center panel header
+            document.getElementById('viewerEmptyState').classList.add('hidden');
+            document.getElementById('viewerDocTitle').innerText = doc.name;
+            document.getElementById('viewerDocMeta').innerText = `Automotive Category: ${doc.type} (${doc.totalPages} total pages) • Focus: ${doc.vehicle}`;
+            
+            // Restore page navigation controls back into layout flow
+            const pageNav = document.getElementById('pageNavControls');
+            pageNav.classList.remove('hidden');
+            pageNav.classList.add('flex');
+            setTimeout(() => {
+                pageNav.classList.remove('opacity-0', 'pointer-events-none');
+            }, 50);
+            
+            document.getElementById('currentPageNum').innerText = activePage;
+            document.getElementById('totalPageNum').innerText = doc.totalPages;
+
+            // Update viewer icon
+            const viewerIcon = document.getElementById('viewerDocIcon');
+            let iconName = 'file-text';
+            if (doc.type === 'Manual') iconName = 'book-open';
+            if (doc.type === 'Insurance') iconName = 'shield-alert';
+            if (doc.type === 'Service') iconName = 'wrench';
+            viewerIcon.setAttribute('data-lucide', iconName);
+            lucide.createIcons();
+
+            // Reset Center scroll context to top when a new file loads
+            document.getElementById('viewerCanvasContainer').scrollTop = 0;
+
+            // Load and pre-parse custom PDF to memory cache to completely bypass the detached buffer issues
+            if (doc.arrayBuffer) {
+                try {
+                    // Safe cloning avoids transferring or detaching the root master buffer
+                    const bufferClone = doc.arrayBuffer.slice(0);
+                    activePdfDoc = await pdfjsLib.getDocument({ data: bufferClone }).promise;
+                } catch (err) {
+                    console.error("Pre-loading active PDF compilation failed", err);
+                    activePdfDoc = null;
+                }
+            }
+
+            // Render view depending on Tab
+            renderActiveDocView();
+        }
+
+        // Switch visual tab
+        function switchViewerTab(tab) {
+            activeViewerTab = tab;
+            const visualBtn = document.getElementById('tabBtnVisual');
+            const dashBtn = document.getElementById('tabBtnDashboard');
+            const timelineBtn = document.getElementById('tabBtnTimeline');
+
+            // Reset tab styles - guaranteeing they maintain alignment
+            [visualBtn, dashBtn, timelineBtn].forEach(b => {
+                b.className = "px-2.5 py-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition text-[11px] md:text-xs flex items-center gap-1 font-medium";
+            });
+
+            const activeBtn = tab === 'visual' ? visualBtn : tab === 'dashboard' ? dashBtn : timelineBtn;
+            activeBtn.className = "px-2.5 py-1 rounded bg-white dark:bg-slate-700 shadow-sm font-semibold text-slate-800 dark:text-white transition text-[11px] md:text-xs flex items-center gap-1";
+
+            renderActiveDocView();
+        }
+
+        // Render view on Center (With strict API Key connectivity checks)
+        async function renderActiveDocView() {
+            const doc = docs.find(d => d.id === activeDocId);
+            const canvasViewport = document.getElementById('canvasViewport');
+            const dashboardViewport = document.getElementById('dashboardViewport');
+            const timelineViewport = document.getElementById('timelineViewport');
+
+            if (activeViewerTab === 'dashboard') {
+                canvasViewport.classList.add('hidden');
+                timelineViewport.classList.add('hidden');
+                dashboardViewport.classList.remove('hidden');
+                
+                if (!isApiConnected || !apiKey) {
+                    renderLockedState(dashboardViewport, "Vehicle Health Dashboard");
+                } else {
+                    renderVehicleDashboard();
+                }
+                return;
+            }
+
+            if (activeViewerTab === 'timeline') {
+                canvasViewport.classList.add('hidden');
+                dashboardViewport.classList.add('hidden');
+                timelineViewport.classList.remove('hidden');
+                
+                if (!isApiConnected || !apiKey) {
+                    renderLockedState(timelineViewport, "Service Timeline Ledger");
+                } else {
+                    renderServiceTimeline();
+                }
+                return;
+            }
+
+            if (!doc) {
+                resetViewer();
+                return;
+            }
+
+            if (activeViewerTab === 'visual') {
+                dashboardViewport.classList.add('hidden');
+                timelineViewport.classList.add('hidden');
+                canvasViewport.classList.remove('hidden');
+                renderRealDocOnCanvas(doc, activePage);
+            }
+        }
+
+        // Render elegant Locked Screen State
+        function renderLockedState(viewport, featureName) {
+            viewport.innerHTML = `
+                <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-center max-w-xl mx-auto shadow-xl fade-in mt-12">
+                    <div class="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                        <i data-lucide="lock" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-white">${featureName} Locked</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-2 mb-6 leading-relaxed">
+                        Connecting your Gemini API Key is required to safely decrypt, parse, and semantically structure report metadata for your vehicles.
+                    </p>
+                    <div class="flex items-center justify-center gap-3">
+                        <button onclick="document.getElementById('apiKeyInput').focus(); showUINotification('Please enter your Gemini API Key in the top header.', 'info');" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2.5 rounded-xl font-semibold transition shadow-md flex items-center gap-2">
+                            <i data-lucide="key" class="w-3.5 h-3.5"></i>
+                            <span>Focus API Key Input</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        // Analyze documents and render personalized Vehicle Health Dashboard
+        function renderVehicleDashboard() {
+            const viewport = document.getElementById('dashboardViewport');
+            
+            // Filter documents strictly by selected vehicle to avoid mixed records
+            const scopedDocs = activeVehicleFocus === 'All' 
+                ? docs 
+                : docs.filter(d => d.vehicle === activeVehicleFocus);
+
+            const hasManual = scopedDocs.some(d => d.type === 'Manual');
+            const hasInsurance = scopedDocs.some(d => d.type === 'Insurance');
+            const hasService = scopedDocs.some(d => d.type === 'Service');
+
+            if (scopedDocs.length === 0) {
+                viewport.innerHTML = `
+                    <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-center max-w-xl mx-auto shadow-xl">
+                        <div class="w-16 h-16 bg-blue-50 dark:bg-blue-950/30 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                            <i data-lucide="info" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white">Workspace Isolated</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                            There are currently no uploaded documents matching the selected scope Focus: <strong class="text-blue-500 font-bold">${activeVehicleFocus}</strong>.
+                        </p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            // Heuristics parser strictly across scoped vehicle documents
+            let combinedText = scopedDocs.map(d => d.pages.map(p => p.text).join(" ")).join(" ");
+            let lowerText = combinedText.toLowerCase();
+
+            // Vehicle Identity Focus Header
+            let vehicleName = activeVehicleFocus !== 'All' ? activeVehicleFocus : "Consolidated Fleet Data";
+
+            // Compute health score based on isolated issues
+            let healthScore = 95;
+            if (lowerText.includes("grinding") || lowerText.includes("squeal") || lowerText.includes("brakes")) healthScore -= 10;
+            if (lowerText.includes("warning") || lowerText.includes("dtc") || lowerText.includes("fault")) healthScore -= 12;
+            if (lowerText.includes("leak") || lowerText.includes("fluid")) healthScore -= 8;
+            healthScore = Math.max(30, Math.min(100, healthScore));
+
+            let scoreColorClass = "text-emerald-500";
+            let scoreBgClass = "bg-emerald-500/10";
+            if (healthScore < 85) {
+                scoreColorClass = "text-amber-500";
+                scoreBgClass = "bg-amber-500/10";
+            }
+            if (healthScore < 65) {
+                scoreColorClass = "text-rose-500";
+                scoreBgClass = "bg-rose-500/10";
+            }
+
+            // Warranty logic
+            let warrantyStatus = "Active Coverage Status";
+            let warrantyDetail = "Details isolated from owners guidelines.";
+            if (lowerText.includes("warranty")) {
+                const wMatch = combinedText.match(/(?:warranty|coverage)\s+[^.]+([0-9,]+\s*miles|\d+\s*years)/i);
+                if (wMatch) {
+                    warrantyStatus = "Warranty Term Found";
+                    warrantyDetail = `Discovered specification: ${wMatch[0]}`;
+                } else {
+                    warrantyStatus = "Warranty Details Active";
+                    warrantyDetail = "Generic terms parsed in documentation.";
+                }
+            } else {
+                warrantyStatus = "Coverage Status Unknown";
+                warrantyDetail = "Upload owners manual or service binder containing terms.";
+            }
+
+            // Insurance logic
+            let insuranceStatus = hasInsurance ? "Fully Insured" : "No Coverage Logged";
+            let insuranceDetail = "Upload insurance policy binder.";
+            if (hasInsurance) {
+                const insDoc = scopedDocs.find(d => d.type === 'Insurance');
+                insuranceDetail = `Verified Policy File: ${insDoc.name}`;
+            }
+
+            // Last Service logic
+            let lastServiceMileage = "N/A";
+            let lastServiceBrief = "No invoices registered under this focus.";
+            if (hasService) {
+                const sDoc = scopedDocs.find(d => d.type === 'Service');
+                const text = sDoc.pages[0].text;
+                const mMatch = text.match(/(\d{1,3}(?:,\d{3})*)\s*(?:miles|mi|mileage)/i);
+                lastServiceMileage = mMatch ? mMatch[0] : "Service Registered";
+                lastServiceBrief = text.substring(0, 120) + "...";
+            }
+
+            // Next Service logic
+            let nextServiceDue = "Routine Service Check";
+            let nextServiceSummary = "Review manufacturer interval logs.";
+            if (lowerText.includes("spark plugs")) {
+                nextServiceDue = "In 5,000 miles";
+                nextServiceSummary = "Check mechanical ignition timing, tire alignments, check engine lights.";
+            }
+
+            // Primary Recommendations list
+            let recommendations = [
+                "Always upload the matching service history alongside owner manuals to yield highly contextual recommendation profiles."
+            ];
+
+            if (lowerText.includes("brakes") || lowerText.includes("grinding")) {
+                recommendations.push("Inspect brake calipers and pad friction compounds promptly. A friction system anomaly was detected in service logs.");
+            }
+            if (lowerText.includes("tire") || lowerText.includes("alignment")) {
+                recommendations.push("Verify vehicle wheel alignments and tire pressures to avoid premature tread compound wear.");
+            }
+
+            viewport.innerHTML = `
+                <div class="space-y-6 fade-in text-slate-800 dark:text-slate-100">
+                    <!-- VEHICLE HEADER CARD -->
+                    <div class="bg-gradient-to-r from-blue-600/10 via-indigo-600/5 to-transparent border border-blue-500/20 dark:border-blue-500/10 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="p-3 bg-blue-600 rounded-xl text-white shadow-lg">
+                                <i data-lucide="car-front" class="w-8 h-8"></i>
+                            </div>
+                            <div>
+                                <span class="text-[10px] uppercase font-bold tracking-widest text-blue-500">Workspace Vehicle Focus</span>
+                                <h2 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white">${vehicleName}</h2>
+                                <p class="text-xs text-slate-400 mt-0.5">Isolated analysis across ${scopedDocs.length} matching files</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SCORE GAUGE & STAT CARDS GRID -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- HEALTH INDEX CIRCLE -->
+                        <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-6 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center shadow-sm">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">Focus Health Index</span>
+                            <div class="relative w-32 h-32 flex items-center justify-center">
+                                <svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8" class="text-slate-100 dark:text-slate-800" fill="transparent"></circle>
+                                    <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8" class="${scoreColorClass}" stroke-dasharray="251.2" stroke-dashoffset="${251.2 - (251.2 * healthScore) / 100}" fill="transparent" stroke-linecap="round"></circle>
+                                </svg>
+                                <div class="text-center z-10">
+                                    <span class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">${healthScore}</span>
+                                    <span class="text-xs text-slate-400 block">/100</span>
+                                </div>
+                            </div>
+                            <span class="mt-4 px-3 py-1 rounded-full text-xs font-bold ${scoreBgClass} ${scoreColorClass}">
+                                ${healthScore >= 90 ? 'OPTIMAL' : healthScore >= 75 ? 'FAIR' : 'ATTENTION REQUIRED'}
+                            </span>
+                        </div>
+
+                        <!-- COVERAGE & CONTRACT DETAILS -->
+                        <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-6 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
+                            <div>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-4">Focus Coverage</span>
+                                
+                                <div class="flex items-start gap-3 mb-4">
+                                    <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-200">${warrantyStatus}</h4>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">${warrantyDetail}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start gap-3">
+                                    <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
+                                        <i data-lucide="file-check" class="w-4 h-4"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-700 dark:text-slate-200">${insuranceStatus}</h4>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">${insuranceDetail}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SERVICE INTERVALS -->
+                        <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-6 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
+                            <div>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-4">Focus Maintenance</span>
+                                
+                                <div class="mb-4">
+                                    <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                                        <span>Last Logged Invoices</span>
+                                        <span class="text-blue-500">${lastServiceMileage}</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${lastServiceBrief}</p>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                                        <span>Next Suggested Interval</span>
+                                        <span class="text-amber-500">${nextServiceDue}</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${nextServiceSummary}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KEY AI RECOMMENDATIONS -->
+                    <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                            <i data-lucide="zap" class="w-4 h-4 text-amber-500"></i> Workspace Operational Guidelines
+                        </h3>
+                        <div class="space-y-3">
+                            ${recommendations.map(rec => `
+                                <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#131929] border border-slate-100 dark:border-slate-800/60">
+                                    <div class="p-1 rounded-full bg-blue-500/10 text-blue-500 mt-0.5 shrink-0">
+                                        <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${rec}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            lucide.createIcons();
+        }
+
+        // Auto-extract service events and display in chronological order
+        function renderServiceTimeline() {
+            const viewport = document.getElementById('timelineViewport');
+
+            // Strictly filter service records matching workspace vehicle focus
+            const scopedDocs = activeVehicleFocus === 'All'
+                ? docs.filter(d => d.type === 'Service')
+                : docs.filter(d => d.type === 'Service' && d.vehicle === activeVehicleFocus);
+
+            if (scopedDocs.length === 0) {
+                viewport.innerHTML = `
+                    <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-center max-w-xl mx-auto shadow-xl">
+                        <div class="w-16 h-16 bg-blue-50 dark:bg-blue-950/30 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                            <i data-lucide="calendar" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white">Service Timeline Locked</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                            No service records or invoices found matching vehicle: <strong class="text-blue-500 font-bold">${activeVehicleFocus}</strong>.
+                        </p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            // Extract event objects from found service documents
+            let timelineEvents = [];
+
+            scopedDocs.forEach(doc => {
+                const combinedText = doc.pages.map(p => p.text).join(" ");
+                
+                // Heuristics parser to scrape essential fields from the texts
+                let dateStr = "Date Unknown";
+                let dateMatch = combinedText.match(/(?:Date|Dated|On):\s*([a-zA-Z]+ \d+, \d{4}|\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})/i);
+                if (dateMatch) {
+                    dateStr = dateMatch[1];
+                }
+
+                let mileageStr = "Mileage Unknown";
+                let mileageMatch = combinedText.match(/(\d{1,3}(?:,\d{3})*)\s*(?:miles|mi|mileage)/i);
+                if (mileageMatch) {
+                    mileageStr = mileageMatch[1] + " miles";
+                }
+
+                let performedStr = "General Service & Diagnostic Inspections";
+                let performedMatch = combinedText.match(/(?:Solution implemented|Services performed|Service|Details):\s*([^.\n]+)/i);
+                if (performedMatch) {
+                    performedStr = performedMatch[1].trim();
+                }
+
+                let partsStr = "None Recorded";
+                let partsMatch = combinedText.match(/(?:Parts|Materials|Components|Total parts):\s*([^.\n]+)/i);
+                if (partsMatch) {
+                    partsStr = partsMatch[1].trim();
+                }
+
+                let nextDueStr = "Expected in 5,000 miles or 6 months";
+                if (combinedText.toLowerCase().includes("spark plugs")) {
+                    nextDueStr = "30,000 miles (Routine inspection/cabin filter refresh)";
+                } else if (combinedText.toLowerCase().includes("oil")) {
+                    nextDueStr = "Next standard oil change at +5,000 miles";
+                }
+
+                timelineEvents.push({
+                    docName: doc.name,
+                    vehicle: doc.vehicle,
+                    date: dateStr,
+                    rawDate: new Date(dateStr).getTime() || Date.now(),
+                    mileage: mileageStr,
+                    servicePerformed: performedStr,
+                    partsReplaced: partsStr,
+                    nextServiceDue: nextDueStr
+                });
+            });
+
+            // Sort timeline events chronologically (Newest first)
+            timelineEvents.sort((a, b) => b.rawDate - a.rawDate);
+
+            // Construct beautiful vertical timeline layout
+            let timelineHTML = `
+                <div class="space-y-6 fade-in text-slate-800 dark:text-slate-100">
+                    <!-- DASHBOARD OVERVIEW SUMMARY CARD -->
+                    <div class="bg-gradient-to-r from-blue-600/10 via-indigo-600/5 to-transparent border border-blue-500/20 dark:border-blue-500/10 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="p-3 bg-blue-600 rounded-xl text-white shadow-lg">
+                                <i data-lucide="history" class="w-8 h-8"></i>
+                            </div>
+                            <div>
+                                <span class="text-[10px] uppercase font-bold tracking-widest text-blue-500"></span>
+                                <h2 class="text-xl font-bold tracking-tight text-slate-800 dark:text-white font-sans">Service Timeline History</h2>
+                                <p class="text-xs text-slate-400 mt-0.5">Isolated timeline tracking for: <strong>${activeVehicleFocus}</strong></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TIMELINE GRID CONTAINER -->
+                    <div class="relative pl-6 border-l border-slate-200 dark:border-slate-800 space-y-8">
+                        ${timelineEvents.map((ev, idx) => `
+                            <!-- TIMELINE NODE -->
+                            <div class="relative">
+                                <!-- Bullet Point Node Indicator -->
+                                <span class="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 ring-4 ring-white dark:ring-[#131929] z-10">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-white"></span>
+                                </span>
+
+                                <!-- Event Detail Card -->
+                                <div class="bg-white dark:bg-[#0f1524] rounded-2xl p-6 border border-slate-200 dark:border-slate-800 hover:border-blue-500/30 transition shadow-sm space-y-4">
+                                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                                        <div class="flex items-center gap-3">
+                                            <span class="px-2.5 py-1 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-lg flex items-center gap-1">
+                                                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${ev.date}
+                                            </span>
+                                            <span class="px-2.5 py-1 bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-lg flex items-center gap-1">
+                                                <i data-lucide="gauge" class="w-3.5 h-3.5"></i> ${ev.mileage}
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-semibold">${ev.vehicle}</span>
+                                            <span class="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Doc: ${ev.docName}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                        <!-- Service Performed column -->
+                                        <div class="space-y-1.5">
+                                            <span class="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">Service Performed</span>
+                                            <p class="text-slate-700 dark:text-slate-200 leading-relaxed font-sans text-sm">${ev.servicePerformed}</p>
+                                        </div>
+
+                                        <!-- Parts Replaced column -->
+                                        <div class="space-y-1.5">
+                                            <span class="font-semibold text-slate-400 uppercase tracking-wider block text-[10px]">Parts Replaced</span>
+                                            <p class="text-slate-700 dark:text-slate-200 font-mono text-xs p-2 rounded-lg bg-slate-50 dark:bg-[#131929] border border-slate-100 dark:border-slate-800/40">${ev.partsReplaced}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Next expected Maintenance info block -->
+                                    <div class="bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-3 mt-2">
+                                        <i data-lucide="bell" class="w-4 h-4 text-emerald-500 shrink-0"></i>
+                                        <div class="text-xs">
+                                            <strong class="text-emerald-500 font-bold block">Next Anticipated Maintenance</strong>
+                                            <span class="text-slate-500 dark:text-slate-300">${ev.nextServiceDue}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            viewport.innerHTML = timelineHTML;
+            lucide.createIcons();
+        }
+
+        // Render PDF pages on dynamic canvases vertically
+        async function renderRealDocOnCanvas(doc, pageNum) {
+            const container = document.getElementById('pdfPagesContainer');
+            
+            // Cancel all ongoing PDF.js page rendering tasks
+            if (renderTasks && renderTasks.length > 0) {
+                renderTasks.forEach(task => {
+                    try { task.cancel(); } catch (e) { /* Suppress harmless render cancel exceptions */ }
+                });
+            }
+            renderTasks = [];
+
+            try {
+                if (!activePdfDoc) {
+                    if (doc.arrayBuffer && doc.arrayBuffer.byteLength > 0) {
+                        const bufferClone = doc.arrayBuffer.slice(0);
+                        activePdfDoc = await pdfjsLib.getDocument({ data: bufferClone }).promise;
+                    } else {
+                        throw new Error("Missing or empty document arrayBuffer.");
+                    }
+                }
+
+                const totalPages = activePdfDoc.numPages;
+
+                // Build a clean viewport layout of canvases if loading doc the first time
+                if (container.children.length !== totalPages) {
+                    container.innerHTML = '';
+                    for (let p = 1; p <= totalPages; p++) {
+                        const canvas = document.createElement('canvas');
+                        canvas.id = `pdf-page-${p}`;
+                        canvas.className = "shadow-lg bg-white w-full h-auto border border-slate-200 dark:border-slate-800 rounded max-w-3xl";
+                        container.appendChild(canvas);
+                    }
+                }
+
+                // Render pages progressively starting with the first
+                for (let p = 1; p <= totalPages; p++) {
+                    const canvas = document.getElementById(`pdf-page-${p}`);
+                    if (!canvas) continue;
+
+                    const page = await activePdfDoc.getPage(p);
+                    const ctx = canvas.getContext('2d');
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: viewport
+                    };
+
+                    const task = page.render(renderContext);
+                    renderTasks.push(task);
+                    await task.promise;
+                }
+            } catch (err) {
+                console.error("PDF canvas render error", err);
+                container.innerHTML = `<div class="p-6 bg-red-100 text-red-700 rounded-xl text-xs font-mono">PDF Load/Render Error: ${err.message}</div>`;
+            }
+        }
+
+        // Detect viewport scrolling to dynamically update active page indicator
+        function handleViewportScroll() {
+            if (isProgrammaticScroll || docs.length === 0 || !activeDocId || activeViewerTab !== 'visual') return;
+
+            const viewportContainer = document.getElementById('viewerCanvasContainer');
+            const canvases = viewportContainer.querySelectorAll('[id^="pdf-page-"]');
+            if (canvases.length === 0) return;
+
+            const viewportRect = viewportContainer.getBoundingClientRect();
+            const viewportCenter = viewportRect.top + viewportRect.height / 2;
+
+            let currentVisiblePage = 1;
+            let minDistance = Infinity;
+
+            canvases.forEach(canvas => {
+                const rect = canvas.getBoundingClientRect();
+                const canvasCenter = rect.top + rect.height / 2;
+                const distance = Math.abs(canvasCenter - viewportCenter);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    const parsedId = canvas.id.split('-').pop();
+                    currentVisiblePage = parseInt(parsedId);
+                }
+            });
+
+            if (activePage !== currentVisiblePage) {
+                activePage = currentVisiblePage;
+                document.getElementById('currentPageNum').innerText = activePage;
+            }
+        }
+
+        // Jump/Scroll smoothly to a targeted page canvas
+        function scrollToPage(pageNum) {
+            const targetCanvas = document.getElementById(`pdf-page-${pageNum}`);
+            if (targetCanvas) {
+                isProgrammaticScroll = true;
+                targetCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                activePage = pageNum;
+                document.getElementById('currentPageNum').innerText = activePage;
+
+                // Release programmatic lock once smooth scroll is complete
+                setTimeout(() => {
+                    isProgrammaticScroll = false;
+                }, 800);
+            }
+        }
+
+        // Handle page navigation button triggers
+        function changePage(direction) {
+            const doc = docs.find(d => d.id === activeDocId);
+            if (!doc) return;
+
+            const nextP = activePage + direction;
+            if (nextP >= 1 && nextP <= doc.totalPages) {
+                scrollToPage(nextP);
+            }
+        }
+
+        // Handle Chat query submission
+        async function handleChatSubmit(event) {
+            event.preventDefault();
+            const input = document.getElementById('chatInput');
+            const query = input.value.trim();
+            if (!query) return;
+
+            if (!apiKey) {
+                document.getElementById('warningKeyBanner').classList.remove('hidden');
+                showUINotification("Please provide a Gemini API Key to chat.", "error");
+                return;
+            }
+
+            // Append User message to Chat UI
+            appendChatMessage("User", query);
+            input.value = '';
+
+            // Loading bubble
+            const loadingId = appendLoadingBubble();
+
+            try {
+                // Get selected doc data
+                const activeDoc = docs.find(d => d.id === activeDocId);
+                const chosenModel = document.getElementById('modelSelector').value;
+
+                // Agentic Logic Setup
+                let contextPrompt = '';
+                if (activeDoc) {
+                    contextPrompt += `You are analyzing the document titled: "${activeDoc.name}" (${activeDoc.type} Category).\n`;
+                    contextPrompt += `This document concerns the vehicle: ${activeDoc.vehicle}.\n`;
+                    contextPrompt += `Below is the entire page-by-page content extracted from this file:\n`;
+                    activeDoc.pages.forEach(p => {
+                        contextPrompt += `--- START PAGE ${p.pageNumber} ---\n${p.text}\n--- END PAGE ${p.pageNumber} ---\n`;
+                    });
+                    contextPrompt += `\nINSTRUCTIONS FOR CITATIONS/REFERENCES:\n`;
+                    contextPrompt += `1. When referencing facts from the document, explicitly include references in the format "Page X" (e.g., "[Page 1]", "[Page 3]").\n`;
+                    contextPrompt += `2. AGENTIC NATURE: If the user's query is general or NOT related to the document (e.g. asking standard generic automotive maintenance, vehicle advice, general questions), leverage your general automotive industry knowledge to answer elegantly, but kindly make a small note that this falls outside the attached manual.\n\n`;
+                } else {
+                    contextPrompt += `You are an expert conversational AI dedicated to the automotive industry. Answer general questions on car repair, vehicle code diagnostics, auto insurance policies, premium luxury car logs, etc. There is currently NO active custom document uploaded, so help the user based on generic industry best practices.\n\n`;
+                }
+
+                // Add prompt framing
+                contextPrompt += `User's Query: "${query}"`;
+
+                // Run API Call to Gemini
+                const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${chosenModel}:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: contextPrompt }] }],
+                    systemInstruction: { 
+                        parts: [{ 
+                            text: "You are AutoDrive Co-Pilot, an advanced AI chatbot specializing in the automotive industry (car service, manual lookups, vehicle specifications, mechanical debugging, auto insurance, and finance). You are helpful, professional, precise, and prioritize citations to document pages whenever you refer to document facts." 
+                        }] 
+                    }
+                };
+
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                removeLoadingBubble(loadingId);
+
+                if (!response.ok) {
+                    throw new Error(`API returned standard error status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || "I was unable to formulate a response. Please verify details.";
+
+                // Append AI Response
+                appendChatMessage("AI", aiText);
+
+            } catch (err) {
+                console.error("Gemini model call failed", err);
+                removeLoadingBubble(loadingId);
+                appendChatMessage("AI", `Error contacting the Gemini AI service. Details: ${err.message}. Please verify your API Key and selected model.`);
+            }
+        }
+
+        // UI Append Chat Message
+        function appendChatMessage(sender, text) {
+            const chatLog = document.getElementById('chatMessageLog');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = "flex items-start gap-3 fade-in";
+
+            const isUser = sender === "User";
+            const avatarBg = isUser ? "bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-100" : "bg-blue-600 text-white";
+            const bubbleBg = isUser ? "bg-blue-500 text-white ml-auto rounded-l-2xl rounded-tr-2xl rounded-br-none" : "bg-slate-100 dark:bg-slate-800/80 rounded-r-2xl rounded-tl-2xl rounded-bl-none text-slate-800 dark:text-slate-100";
+            const avatarTxt = isUser ? "ME" : "AI";
+            const senderLabel = isUser ? "You" : "AutoDrive Co-Pilot";
+            const alignmentClass = isUser ? "flex-row-reverse" : "";
+
+            messageDiv.className = `flex items-start gap-3 ${alignmentClass}`;
+
+            // Parse simple formatting for markdown citations in reply: e.g. [Page X] or standard bullet points
+            let formattedText = escapeHtml(text)
+                .replace(/\[Page (\d+)\]/g, '<span onclick="scrollToPage($1)" class="bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold px-1.5 py-0.5 rounded cursor-pointer hover:bg-blue-500 hover:text-white transition-all text-xs" title="Click to view Page $1">[Page $1]</span>')
+                .replace(/\n/g, '<br/>');
+
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-lg ${avatarBg} flex items-center justify-center text-xs shrink-0 font-bold">${avatarTxt}</div>
+                <div class="${bubbleBg} px-4 py-2.5 text-sm max-w-[85%]">
+                    <p class="font-semibold text-[10px] uppercase tracking-wider mb-1 opacity-70">${senderLabel}</p>
+                    <div class="leading-relaxed text-xs md:text-sm">${formattedText}</div>
+                </div>
+            `;
+
+            chatLog.appendChild(messageDiv);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        // Loading Bubble Management
+        function appendLoadingBubble() {
+            const chatLog = document.getElementById('chatMessageLog');
+            const loadingId = 'loading_' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.id = loadingId;
+            messageDiv.className = "flex items-start gap-3";
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs shrink-0 font-bold">AI</div>
+                <div class="bg-slate-100 dark:bg-[#131929] rounded-r-2xl rounded-tl-2xl px-4 py-2.5 text-sm max-w-[85%] text-slate-400">
+                    <div class="flex items-center gap-1.5">
+                        <span class="animate-bounce">●</span>
+                        <span class="animate-bounce [animation-delay:0.2s]">●</span>
+                        <span class="animate-bounce [animation-delay:0.4s]">●</span>
+                        <span class="text-xs ml-1 font-medium">Consulting manuals...</span>
+                    </div>
+                </div>
+            `;
+            chatLog.appendChild(messageDiv);
+            chatLog.scrollTop = chatLog.scrollHeight;
+            return loadingId;
+        }
+
+        // Remove loading bubble
+        function removeLoadingBubble(id) {
+            const bubble = document.getElementById(id);
+            if (bubble) bubble.remove();
+        }
+
+        // Custom UI Notification Alerts
+        function showUINotification(msg, type = 'info') {
+            const existing = document.getElementById('uiNotificationBar');
+            if (existing) existing.remove();
+
+            const bar = document.createElement('div');
+            bar.id = 'uiNotificationBar';
+            
+            let bg = 'bg-blue-600';
+            if (type === 'error') bg = 'bg-rose-600';
+            if (type === 'success') bg = 'bg-emerald-600';
+
+            bar.className = `fixed bottom-4 left-4 z-50 ${bg} text-white px-4 py-2.5 rounded-lg shadow-xl text-xs flex items-center gap-2 font-medium transition-all duration-300`;
+            bar.innerHTML = `<i data-lucide="bell" class="w-4 h-4"></i> <span>${msg}</span>`;
+            
+            document.body.appendChild(bar);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                bar.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => bar.remove(), 300);
+            }, 3500);
+        }
+
+        // Helper to escape HTML tags to safeguard markdown renderer
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
